@@ -1,32 +1,47 @@
-'use client'
-import { useState } from 'react'
-import { login } from '@/app/actions/auth'
-import { useRouter } from 'next/navigation'
-import styles from './login.module.css'
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
+import styles from "./login.module.css"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  const formData = new FormData(e.target);
-  const result = await login(formData);
+    setLoading(true)
+    setError(null)
 
-  if (result.success) {
-  // Le damos un momento a las cookies para que se asienten
-  setTimeout(() => {
-    window.location.href = '/stapla';
-  }, 500);
-} else {
-  setError(result.error);
-  setLoading(false);
+    try {
+      const formData = new FormData(e.target)
+      const idsap = formData.get("idsap")
+      const password = formData.get("password")
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: `${idsap}@yazaki.com`,
+        password,
+      })
+
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+        return
+      }
+
+      // Login exitoso
+      // Esperamos un tick para que la sesión se estabilice
+      setTimeout(() => {
+        router.replace("/stapla")
+      }, 100)
+
+    } catch (err) {
+      setError("Error inesperado")
+      setLoading(false)
+    }
   }
-};
 
   return (
     <div className={styles.container}>
@@ -39,29 +54,29 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>
             <label>ID SAP</label>
-            <input 
-              name="idsap" 
-              type="text" 
-              placeholder="Ej. 10699992" 
-              required 
+            <input
+              name="idsap"
+              type="text"
+              placeholder="Ej. 10699992"
+              required
               maxLength="8"
             />
           </div>
 
           <div className={styles.inputGroup}>
             <label>Contraseña</label>
-            <input 
-              name="password" 
-              type="password" 
-              placeholder="••••••••" 
-              required 
+            <input
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              required
             />
           </div>
 
           {error && <p className={styles.errorMsg}>{error}</p>}
 
           <button type="submit" className={styles.loginBtn} disabled={loading}>
-            {loading ? 'ACCEDIENDO...' : 'ENTRAR'}
+            {loading ? "ACCEDIENDO..." : "ENTRAR"}
           </button>
         </form>
       </div>

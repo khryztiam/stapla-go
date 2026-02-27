@@ -1,0 +1,35 @@
+import { NextResponse } from 'next/server';
+
+export function middleware(req) {
+  const path = req.nextUrl.pathname;
+  
+  // 1. Buscamos cualquier cookie que contenga el token de auth
+  const cookies = req.cookies.getAll();
+  const hasAuthCookie = cookies.some(c => c.name.includes('auth-token'));
+
+  // 2. RUTAS PÚBLICAS: Si no hay cookie y no está en /login, va para afuera
+  if (!hasAuthCookie && path !== '/login') {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  // 3. RUTAS LOGUEADAS: Si ya hay cookie e intenta ir al login, dejarlo pasar
+  // para que el AuthContext decida a dónde enviarlo.
+  if (hasAuthCookie && path === '/login') {
+    return NextResponse.next();
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+};
