@@ -1,0 +1,255 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 15px;
+}
+
+.header h1 {
+  color: #1a202c;
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+/* --- BOTÓN PRINCIPAL --- */
+.btnSolicitar {
+  background-color: #e53e3e; /* Rojo Yazaki */
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+  box-shadow: 0 4px 6px rgba(229, 62, 62, 0.2);
+}
+
+.btnSolicitar:hover {
+  background-color: #c53030;
+  transform: translateY(-2px);
+}
+
+.btnSolicitar:disabled {
+  background-color: #a0aec0;
+  cursor: not-allowed;
+}
+
+/* --- GRID DE CARDS --- */
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 8px solid #cbd5e0; /* Default gris */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+}
+
+.card h3 {
+  margin: 10px 0;
+  color: #2d3748;
+}
+
+.card p {
+  color: #718096;
+  font-size: 0.9rem;
+  margin: 5px 0;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* --- ESTADOS DE LA SOLICITUD --- */
+
+/* PENDIENTE */
+.pendiente {
+  border-left-color: #f6ad55; /* Naranja */
+  background-color: #fffaf0;
+}
+.pendiente .badge {
+  background: #feebc8;
+  color: #92400e;
+}
+
+/* EN CAMINO */
+.en_camino {
+  border-left-color: #4299e1; /* Azul */
+  background-color: #ebf8ff;
+  animation: pulse 2s infinite;
+}
+.en_camino .badge {
+  background: #bee3f8;
+  color: #2b6cb0;
+}
+
+/* FINALIZADO / ENTREGADO */
+.entregado {
+  border-left-color: #48bb78; /* Verde */
+  background-color: #f0fff4;
+  opacity: 0.8;
+}
+.entregado .badge {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+/* --- ANIMACIÓN PARA "EN CAMINO" --- */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(66, 153, 225, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(66, 153, 225, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(66, 153, 225, 0); }
+}
+
+.animacionCamino {
+  margin-top: 15px;
+  font-weight: bold;
+  color: #2b6cb0;
+  font-size: 0.85rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modalContent {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 450px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+.inputGroup {
+  margin-bottom: 20px;
+}
+
+.inputGroup label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #4a5568;
+}
+
+.select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.modalActions {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.btnCancel {
+  flex: 1;
+  padding: 12px;
+  background: #edf2f7;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btnConfirm {
+  flex: 2;
+  padding: 12px;
+  background: #e53e3e; /* Rojo Yazaki */
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.atendidoPor {
+  margin-top: 12px;
+  padding: 10px;
+  background-color: #e3f2fd; /* Azul suave */
+  border-radius: 8px;
+  border-left: 5px solid #2196f3;
+  font-size: 0.9rem;
+  color: #0d47a1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Contenedor del selector */
+.selectorContainer {
+  margin-bottom: 25px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selectorContainer label {
+  font-weight: 600;
+  color: #444;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* El select propiamente dicho */
+.selectorContainer select {
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  background-color: white;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  outline: none;
+}
+
+.selectorContainer select:focus {
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+}

@@ -1,0 +1,136 @@
+.sidebar {
+  width: 250px;
+  height: 100vh;
+  background-color: #1a202c; /* Gris muy oscuro/Azul medianoche */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  border-right: 1px solid #2d3748;
+}
+
+.logo {
+  padding: 30px 20px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.logo span {
+  color: #e53e3e; /* Rojo Yazaki */
+}
+
+.nav {
+  flex: 1;
+  padding: 0 10px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  color: #a0aec0;
+  text-decoration: none;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  transition: all 0.2s ease;
+}
+
+.navLink:hover {
+  background: #2d3748;
+  color: white;
+}
+
+.active {
+  background: #e53e3e !important; /* Rojo Yazaki */
+  color: white !important;
+}
+
+.icon {
+  margin-right: 12px;
+  font-size: 1.2rem;
+}
+
+.footer {
+  padding: 20px;
+  border-top: 1px solid #2d3748;
+}
+
+.logoutBtn {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid #4a5568;
+  color: #a0aec0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.logoutBtn:hover {
+  background: #e53e3e;
+  border-color: #e53e3e;
+  color: white;
+}
+
+.logoHeader {
+  padding: 20px 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-bottom: 1px solid #2d3748; /* Línea divisoria suave */
+  margin-bottom: 20px;
+}
+
+.logoText {
+  padding: 30px 20px;
+  font-family: var(--font-geist-sans), sans-serif; /* Usamos la fuente moderna */
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -1px; /* Un toque más moderno */
+  display: flex;
+  gap: 2px;
+}
+
+.stapla {
+  color: white;
+}
+
+.go {
+  color: #e53e3e; /* Rojo Yazaki */
+  position: relative;
+}
+
+/* Un pequeño adorno visual opcional: un punto que simboliza movimiento */
+.go::after {
+  content: '';
+  position: absolute;
+  width: 6px; height: 6px;
+  background-color: #e53e3e;
+  border-radius: 50%;
+  bottom: 8px; right: -8px;
+}
+
+.userBadge {
+  padding: 10px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.userName {
+  font-size: 0.9rem;
+  font-weight: bold;
+  margin: 0;
+  color: #fff;
+}
+
+.userRole {
+  font-size: 0.7rem;
+  color: #aaa;
+  margin: 2px 0 0 0;
+}
