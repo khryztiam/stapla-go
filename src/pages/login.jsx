@@ -34,7 +34,7 @@ export default function LoginPage() {
       // Login exitoso
       // Esperamos un tick para que la sesión se estabilice
       setTimeout(() => {
-        router.replace("/stapla")
+        router.replace("/dashboard")
       }, 100)
 
     } catch (err) {
