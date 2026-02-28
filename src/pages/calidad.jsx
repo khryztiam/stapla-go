@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
-import styles from './calidad.module.css';
+import styles from '@/styles/calidad.module.css';
 
 export default function CalidadPage() {
   const { profile } = useAuth();

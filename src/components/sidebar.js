@@ -2,7 +2,7 @@
 import { useAuth } from '@/context/AuthContext';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import styles from "./Sidebar.module.css";
+import styles from "@/styles/Sidebar.module.css";
 
 export default function Sidebar() {
   // 1. Cambiamos 'signOut' por 'logout' para que coincida con el Contexto
@@ -31,7 +31,7 @@ export default function Sidebar() {
     },
     { 
       name: "Gestión Usuarios", 
-      path: "/admin", 
+      path: "/admin/admin", 
       icon: "👥", 
       roles: ["ADMIN"] 
     },

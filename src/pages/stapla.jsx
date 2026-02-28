@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import styles from "./stapla.module.css";
+import styles from "@/styles/stapla.module.css";
 
 export default function StaplaPage() {
   const { profile, loading: authLoading, role } = useAuth();
