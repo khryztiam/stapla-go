@@ -40,12 +40,12 @@ export default function Sidebar() {
   // 3. Obtenemos el rol real y lo pasamos a mayúsculas para comparar bien
   const userRole = profile?.rol_name?.toUpperCase() || 'GUEST';
 
-  const handleLogout = async () => {
+const handleLogout = async () => {
   try {
-    await logout();
-    window.location.href = "/login";
+    await logout(); // Esperamos a que el Context limpie Supabase
+    window.location.href = "/"; // Forzamos la salida al Home
   } catch (error) {
-    console.error("Error al salir:", error);
+    window.location.href = "/"; // Si algo falla, salimos de todos modos
   }
 };
 

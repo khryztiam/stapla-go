@@ -67,11 +67,16 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const logout = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
+const logout = async () => {
+  try {
+    await supabase.auth.signOut(); //
+    setUser(null); //
+    setProfile(null); //
+    // No pongas el window.location aquí para que el Context sea reutilizable
+  } catch (error) {
+    console.error("Error en signOut:", error);
   }
+};
 
   return (
     <AuthContext.Provider value={{
