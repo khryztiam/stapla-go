@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import styles from "@/styles/stapla.module.css";
@@ -12,19 +12,20 @@ export default function StaplaPage() {
   const [staplaId, setStaplaId] = useState("Stapla 1");
 
   // 📡 CARGA DE DATOS + REALTIME
+  // 1. Estabilizamos la función de carga
+const fetchSolicitudes = useCallback(async () => {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select("*")
+    .neq("estado", "cerrado")
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (!error) setSolicitudes(data || []);
+}, []);
+
   useEffect(() => {
     if (!profile) return;
-
-    const fetchSolicitudes = async () => {
-      const { data, error } = await supabase
-        .from("solicitudes")
-        .select("*")
-        .neq("estado", "cerrado")
-        .order("created_at", { ascending: false })
-        .limit(6);
-
-      if (!error) setSolicitudes(data || []);
-    };
 
     fetchSolicitudes();
 
@@ -40,7 +41,7 @@ export default function StaplaPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile]);
+  }, [profile, fetchSolicitudes]);
 
   const crearSolicitud = async (e) => {
     e.preventDefault();

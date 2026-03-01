@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
 import styles from '@/styles/calidad.module.css';
@@ -8,34 +8,60 @@ export default function CalidadPage() {
   const { profile } = useAuth();
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [userInteracted, setUserInteracted] = useState(false);
+
+  // 🎙️ Función de Voz (TTS)
+  const playVoiceNotification = useCallback((solicitud) => {
+    if (!userInteracted || !("speechSynthesis" in window)) return;
+
+    window.speechSynthesis.cancel(); // Detener cualquier anuncio previo
+
+    const mensaje = `Atención. Nueva solicitud de ${solicitud.tipo_soporte} para ${solicitud.stapla_id} en ${solicitud.area}.`;
+    const speech = new SpeechSynthesisUtterance(mensaje);
+
+    speech.lang = "es-MX";
+    speech.rate = 0.9;
+    speech.pitch = 1.0;
+
+    // Cargar voces
+    const voices = window.speechSynthesis.getVoices();
+    // Prioridad: Microsoft Dalia (Natural) > Cualquier voz de México > Cualquier voz en español
+    const daliaVoice = voices.find(v => v.name.includes("Dalia") && v.name.includes("Online"));
+    const mexicanVoice = voices.find(v => v.lang === "es-MX");
+    const spanishVoice = voices.find(v => v.lang.includes("es"));
+
+    speech.voice = daliaVoice || mexicanVoice || spanishVoice;
+    
+    window.speechSynthesis.speak(speech);
+  }, [userInteracted]);
 
   // 1. Lógica de Notificación
   const enviarNotificacion = useCallback((solicitud) => {
     if (!("Notification" in window)) return;
     
-    if (Notification.permission === "granted") {
+    if ("Notification" in window && Notification.permission === "granted") {
       new Notification("⚠️ NUEVO AVISO - StaplaGo", {
         body: `${solicitud.area}: ${solicitud.tipo_soporte} en ${solicitud.stapla_id || 'Estación'}`,
         icon: "/logo-icon.png", // Asegúrate de tener un icono en public/
         tag: "nuevo-aviso"
       });
-      // Opcional: Sonido
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.play().catch(() => {}); 
     }
-  }, []);
+
+    // 2. Notificación por Voz
+    playVoiceNotification(solicitud);
+  }, [playVoiceNotification]);
 
   // 2. FUNCIÓN PARA ACTIVAR PERMISOS (Se activará al hacer clic)
-  const activarNotificaciones = () => {
-    if ("Notification" in window) {
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-          alert("¡Excelente! Notificaciones activadas.");
-        } else {
-          alert("Permiso denegado. Revisa el candado en la barra de direcciones.");
-        }
-      });
+ const activarAudio = () => {
+    setUserInteracted(true);
+    // Intentar pedir permiso si aún no está dado
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
     }
+    // Pequeño feedback sonoro para confirmar activación
+    const confirmMsg = new SpeechSynthesisUtterance("Sistema de avisos activado");
+    confirmMsg.lang = "es-MX";
+    window.speechSynthesis.speak(confirmMsg);
   };
 
   const fetchSolicitudes = useCallback(async () => {
@@ -122,7 +148,13 @@ export default function CalidadPage() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.header} onClick={activarNotificaciones} style={{cursor: 'pointer'}}>
+      {/* 🛑 Banner de Activación */}
+      {!userInteracted && (
+        <div className={styles.audioBanner} onClick={activarAudio}>
+          📢 Haz clic aquí para activar las alertas de voz y sonido
+        </div>
+      )}
+      <header className={styles.header} style={{cursor: 'pointer'}}>
         <h1>Atención de Avisos - Calidad</h1>
         <div className={styles.userInfo}>
           <p><strong>Usuario:</strong> {profile.user_name}</p>
