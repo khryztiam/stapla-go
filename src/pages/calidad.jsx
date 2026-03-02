@@ -1,185 +1,234 @@
-'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/context/AuthContext';
+import { Card } from '@/components/Card';
 import styles from '@/styles/calidad.module.css';
 
 export default function CalidadPage() {
   const { profile } = useAuth();
   const [solicitudes, setSolicitudes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [userInteracted, setUserInteracted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [bannerVisible, setBannerVisible] = useState(true);
 
-  // 🎙️ Función de Voz (TTS)
+  const profileRef = useRef(profile);
+  const userInteractedRef = useRef(false);
+
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
+  // ─── VOZ Y NOTIFICACIONES ────────────────────────────────
+
   const playVoiceNotification = useCallback((solicitud) => {
-    if (!userInteracted || !("speechSynthesis" in window)) return;
-
-    window.speechSynthesis.cancel(); // Detener cualquier anuncio previo
-
+    if (!userInteractedRef.current || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
     const mensaje = `Atención. Nueva solicitud de ${solicitud.tipo_soporte} para ${solicitud.stapla_id} en ${solicitud.area}.`;
     const speech = new SpeechSynthesisUtterance(mensaje);
-
     speech.lang = "es-MX";
     speech.rate = 0.9;
-    speech.pitch = 1.0;
-
-    // Cargar voces
     const voices = window.speechSynthesis.getVoices();
-    // Prioridad: Microsoft Dalia (Natural) > Cualquier voz de México > Cualquier voz en español
-    const daliaVoice = voices.find(v => v.name.includes("Dalia") && v.name.includes("Online"));
-    const mexicanVoice = voices.find(v => v.lang === "es-MX");
-    const spanishVoice = voices.find(v => v.lang.includes("es"));
-
-    speech.voice = daliaVoice || mexicanVoice || spanishVoice;
-    
+    speech.voice =
+      voices.find(v => v.name.includes("Dalia") && v.name.includes("Online")) ||
+      voices.find(v => v.lang === "es-MX") ||
+      voices.find(v => v.lang.includes("es"));
     window.speechSynthesis.speak(speech);
-  }, [userInteracted]);
+  }, []);
 
-  // 1. Lógica de Notificación
   const enviarNotificacion = useCallback((solicitud) => {
     if (!("Notification" in window)) return;
-    
-    if ("Notification" in window && Notification.permission === "granted") {
+    if (Notification.permission === "granted") {
       new Notification("⚠️ NUEVO AVISO - StaplaGo", {
         body: `${solicitud.area}: ${solicitud.tipo_soporte} en ${solicitud.stapla_id || 'Estación'}`,
-        icon: "/logo-icon.png", // Asegúrate de tener un icono en public/
+        icon: "/logo-icon.png",
         tag: "nuevo-aviso"
       });
     }
-
-    // 2. Notificación por Voz
     playVoiceNotification(solicitud);
   }, [playVoiceNotification]);
 
-  // 2. FUNCIÓN PARA ACTIVAR PERMISOS (Se activará al hacer clic)
- const activarAudio = () => {
-    setUserInteracted(true);
-    // Intentar pedir permiso si aún no está dado
+  const activarAudio = useCallback(() => {
+    userInteractedRef.current = true;
+    setBannerVisible(false);
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-    // Pequeño feedback sonoro para confirmar activación
     const confirmMsg = new SpeechSynthesisUtterance("Sistema de avisos activado");
     confirmMsg.lang = "es-MX";
     window.speechSynthesis.speak(confirmMsg);
-  };
-
-  const fetchSolicitudes = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('solicitudes')
-      .select('*')
-      .neq('estado', 'cerrado')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error cargando solicitudes:', error);
-    } else {
-      setSolicitudes(data || []);
-    }
-    setLoading(false);
   }, []);
 
+  // ─── CARGA Y REALTIME ────────────────────────────────────
+
   useEffect(() => {
-    // 2. Pedir permiso al técnico apenas entre
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+    if (!profile) return;
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
 
-    fetchSolicitudes();
+    const loadInitialData = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('solicitudes')
+        .select('*')
+        .neq('estado', 'cerrado')
+        .order('created_at', { ascending: true });
+
+      if (!error) setSolicitudes(data || []);
+      setLoading(false);
+    };
+
+    loadInitialData();
 
     const channel = supabase
       .channel('calidad-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'solicitudes' },
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'solicitudes' },
         (payload) => {
-          // Si es un INSERT, lanzamos la notificación
-          if (payload.eventType === 'INSERT') {
-            enviarNotificacion(payload.new);
+          const nueva = payload.new;
+          if (nueva.estado !== 'cerrado') {
+            setSolicitudes(prev => {
+              const existe = prev.some(s => s.id === nueva.id);
+              if (existe) return prev;
+              return [...prev, nueva];
+            });
+            enviarNotificacion(nueva);
           }
-          fetchSolicitudes();
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'solicitudes' },
+        (payload) => {
+          const actualizada = payload.new;
+          if (actualizada.estado === 'cerrado') {
+            setSolicitudes(prev => prev.filter(s => s.id !== actualizada.id));
+          } else {
+            setSolicitudes(prev =>
+              prev.map(s => s.id === actualizada.id ? actualizada : s)
+            );
+          }
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
-  }, [fetchSolicitudes, enviarNotificacion]);
+  }, [profile, enviarNotificacion]);
 
-  const actualizarEstado = async (id, nuevoEstado) => {
-    if (!profile) return;
-    const updates = { 
-      estado: nuevoEstado,
-      idsap_calidad: profile.idsap, 
-      nombre_calidad: profile.user_name 
-    };
+  // ─── ACCIONES ────────────────────────────────────────────
 
-    if (nuevoEstado === 'en_proceso') updates.fecha_inicio_soporte = new Date().toISOString();
-    if (nuevoEstado === 'cerrado') updates.fecha_fin_soporte = new Date().toISOString();
+  const atenderSolicitud = useCallback(async (solicitudId) => {
+    const currentProfile = profileRef.current;
+    if (!currentProfile) return;
 
-    const { error } = await supabase.from('solicitudes').update(updates).eq('id', id);
-    if (error) alert("Error: " + error.message);
-  };
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({
+        estado: 'en_proceso',
+        idsap_calidad: currentProfile.idsap,
+        nombre_calidad: currentProfile.user_name,
+        fecha_inicio_soporte: new Date().toISOString()
+      })
+      .eq('id', solicitudId);
 
-  // --- RENDERS Y FILTROS (Se mantienen igual a tu código) ---
+    if (error) alert("Error al atender: " + error.message);
+  }, []);
+
+  const finalizarSolicitud = useCallback(async (solicitudId) => {
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({
+        estado: 'cerrado',
+        fecha_fin_soporte: new Date().toISOString()
+      })
+      .eq('id', solicitudId);
+
+    if (error) alert("Error al finalizar: " + error.message);
+  }, []);
+
   if (!profile) return <div className={styles.container}>Cargando usuario...</div>;
 
-  const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
-  const misAtenciones = solicitudes.filter(s => s.estado === 'en_proceso' && s.idsap_calidad === profile.idsap);
-  const otrosTecnicos = solicitudes.filter(s => s.estado === 'en_proceso' && s.idsap_calidad && s.idsap_calidad !== profile.idsap);
+  // ─── FILTROS ─────────────────────────────────────────────
 
-  const renderItem = (sol, esMio = false) => (
-    <div key={sol.id} className={`${styles.item} ${styles[sol.estado]}`}>
-      <div className={styles.info}>
-        <span className={styles.time}>{sol.created_at ? new Date(sol.created_at).toLocaleTimeString() : '--'}</span>
-        <h3>{sol.area} - {sol.tipo_soporte}</h3>
-        <p>Solicitado por: <strong>{sol.nombre_solicitante}</strong></p>
-        <p><small>Ubicación: {sol.stapla_id || 'N/A'}</small></p>
-        {sol.nombre_calidad && !esMio && <p className={styles.atendidoPor}>👤 Atendiendo: {sol.nombre_calidad}</p>}
-      </div>
-      <div className={styles.actions}>
-        {sol.estado === 'pendiente' && <button onClick={() => actualizarEstado(sol.id, 'en_proceso')} className={styles.btnAtender}>ATENDER</button>}
-        {esMio && <button onClick={() => actualizarEstado(sol.id, 'cerrado')} className={styles.btnFinalizar}>FINALIZAR</button>}
-      </div>
-    </div>
+  const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
+  const misAtenciones = solicitudes.filter(
+    s => s.estado === 'en_proceso' && s.idsap_calidad === profile.idsap
   );
+  const otrosTecnicos = solicitudes.filter(
+    s => s.estado === 'en_proceso' && s.idsap_calidad && s.idsap_calidad !== profile.idsap
+  );
+
+  // ─── RENDER ──────────────────────────────────────────────
 
   return (
     <div className={styles.container}>
-      {/* 🛑 Banner de Activación */}
-      {!userInteracted && (
-        <div className={styles.audioBanner} onClick={activarAudio}>
-          📢 Haz clic aquí para activar las alertas de voz y sonido
+      {bannerVisible && (
+        <div className="audio-banner" onClick={activarAudio}>
+          📢 Haz clic aquí para activar las alertas de voz
         </div>
       )}
-      <header className={styles.header} style={{cursor: 'pointer'}}>
+
+      <header className={styles.header}>
         <h1>Atención de Avisos - Calidad</h1>
         <div className={styles.userInfo}>
           <p><strong>Usuario:</strong> {profile.user_name}</p>
           <p><small>SAP: {profile.idsap}</small></p>
         </div>
       </header>
-      {loading && <p className={styles.loadingAvisos}>Actualizando lista...</p>}
-      
-      {/* Listas de Atenciones, Pendientes y Otros... (Igual a tu código) */}
+
+      {loading && <p className={styles.loading}>Cargando solicitudes...</p>}
+
       {misAtenciones.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>🛠️ MIS ATENCIONES ACTUALES</h2>
-          <div className={styles.listContainer}>{misAtenciones.map(sol => renderItem(sol, true))}</div>
+          <div className={styles.cardsGrid}>
+            {misAtenciones.map(sol => (
+              <Card
+                key={sol.id}
+                order={sol}
+                variant="calidad"
+                onAtender={atenderSolicitud}
+                onFinalizar={finalizarSolicitud}
+                profile={profile}
+              />
+            ))}
+          </div>
         </section>
       )}
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>🔥 AVISOS PENDIENTES</h2>
-        <div className={styles.listContainer}>
-          {pendientes.length === 0 ? <p className={styles.empty}>✅ No hay avisos nuevos.</p> : pendientes.map(sol => renderItem(sol))}
+        <div className={styles.cardsGrid}>
+          {pendientes.length === 0 ? (
+            <p className={styles.empty}>✅ No hay avisos nuevos.</p>
+          ) : (
+            pendientes.map(sol => (
+              <Card
+                key={sol.id}
+                order={sol}
+                variant="calidad"
+                onAtender={atenderSolicitud}
+                profile={profile}
+              />
+            ))
+          )}
         </div>
       </section>
+
       {otrosTecnicos.length > 0 && (
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>👥 SIENDO ATENDIDOS POR OTROS</h2>
-          <div className={styles.listContainer} style={{ opacity: 0.7 }}>{otrosTecnicos.map(sol => renderItem(sol))}</div>
+          <div className={styles.cardsGrid}>
+            {otrosTecnicos.map(sol => (
+              <Card
+                key={sol.id}
+                order={sol}
+                variant="calidad"
+                profile={profile}
+              />
+            ))}
+          </div>
         </section>
       )}
     </div>

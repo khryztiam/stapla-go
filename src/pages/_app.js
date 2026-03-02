@@ -5,31 +5,34 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import '@/styles/globals.css';
 import '@/styles/admingate.css';
-import AdminGate from '@/components/AdminGate';
+import '@/styles/card.css'; 
+import AdminGate, { roleRoutes } from '@/components/AdminGate';
 
 function AppContent({ Component, pageProps }) {
   const router = useRouter();
-  const { user, loading } = useAuth(); // <--- Aquí obtenemos el estado real
+  const { user, role, loading } = useAuth()
 
-  // Definimos qué rutas son públicas
   const isLoginPage = router.pathname.startsWith("/login");
   const isRoot = router.pathname === "/";
 
-  // 1. Mientras carga la sesión de Supabase, no mostramos nada para evitar el "GUEST"
   if (loading) return null;
 
-  // 2. Si no hay usuario, o es la página de login/raíz, renderizamos LIMPIO (sin Sidebar)
+  // ✅ Redirección cuando ya hay sesión y está en ruta pública
+  if (user && role && (isLoginPage || isRoot)) {
+    const targetRoute = roleRoutes[role]?.[0] || '/dashboard'
+    router.replace(targetRoute)
+    return null
+  }
+
   if (!user || isLoginPage || isRoot) {
     return <Component {...pageProps} />;
   }
 
-  // 3. Si hay usuario y es una ruta interna, mostramos el Layout completo
   return (
     <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
       <aside style={{ width: "260px", flexShrink: 0 }}>
         <Sidebar />
       </aside>
-
       <main style={{ 
         flexGrow: 1, 
         width: "calc(100% - 260px)", 
@@ -43,8 +46,7 @@ function AppContent({ Component, pageProps }) {
     </div>
   );
 }
-
-export default function App(props) {
+export default function App({ Component, pageProps }) {
   return (
     <AuthProvider>
       <Head>
@@ -52,7 +54,7 @@ export default function App(props) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </Head>
-      <AppContent {...props} />
+      <AppContent Component={Component} pageProps={pageProps} />
     </AuthProvider>
   );
 }

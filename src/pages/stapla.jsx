@@ -1,156 +1,168 @@
-"use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
+import { Card } from "@/components/Card";
 import styles from "@/styles/stapla.module.css";
 
 export default function StaplaPage() {
   const { profile } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [staplaId, setStaplaId] = useState("Stapla 1");
+  const [formData, setFormData] = useState({ linea: "", tipo: "Llave" });
 
-  // 📡 CARGA DE DATOS + REALTIME
-  // 1. Estabilizamos la función de carga
-const fetchSolicitudes = useCallback(async () => {
-  const { data, error } = await supabase
-    .from("solicitudes")
-    .select("*")
-    .neq("estado", "cerrado")
-    .order("created_at", { ascending: false })
-    .limit(6);
+  const formDataRef = useRef(formData);
+  const staplaIdRef = useRef(staplaId);
+  const profileRef = useRef(profile);
+  const submittingRef = useRef(false);
 
-  if (!error) setSolicitudes(data || []);
-}, []);
+  useEffect(() => { formDataRef.current = formData; }, [formData]);
+  useEffect(() => { staplaIdRef.current = staplaId; }, [staplaId]);
+  useEffect(() => { profileRef.current = profile; }, [profile]);
+
+  const fetchSolicitudes = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("solicitudes")
+      .select("*")
+      .neq("estado", "cerrado")
+      .order("created_at", { ascending: false })
+      .limit(6);
+    if (!error) setSolicitudes(data || []);
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
-
     fetchSolicitudes();
 
     const channel = supabase
       .channel("stapla-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "solicitudes" },
-        fetchSolicitudes,
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "solicitudes" },
+        (payload) => {
+          const nueva = payload.new;
+          if (nueva.estado !== "cerrado") {
+            setSolicitudes(prev => {
+              const existe = prev.some(s => s.id === nueva.id);
+              if (existe) return prev;
+              return [nueva, ...prev].slice(0, 6);
+            });
+          }
+        }
+      )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "solicitudes" },
+        (payload) => {
+          const actualizada = payload.new;
+          if (actualizada.estado === "cerrado") {
+            setSolicitudes(prev => prev.filter(s => s.id !== actualizada.id));
+          } else {
+            setSolicitudes(prev =>
+              prev.map(s => s.id === actualizada.id ? actualizada : s)
+            );
+          }
+        }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [profile, fetchSolicitudes]);
 
-  const crearSolicitud = async (e) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const crearSolicitud = useCallback(async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+
+    const currentProfile = profileRef.current;
+    const currentFormData = formDataRef.current;
+    const currentStaplaId = staplaIdRef.current;
 
     try {
-      // 1. Verificación de seguridad: ¿Sigue habiendo usuario?
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data, error } = await supabase
+        .from("solicitudes")
+        .insert([{
+          area: currentFormData.linea,
+          tipo_soporte: currentFormData.tipo,
+          idsap_solicitante: currentProfile.idsap,
+          nombre_solicitante: currentProfile.user_name,
+          stapla_id: currentStaplaId,
+          estado: "pendiente",
+        }])
+        .select();
 
-      if (!session) {
-        alert("Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.");
-        window.location.href = "/";
-        return;
+      if (error) throw error;
+
+      if (data) {
+        setSolicitudes(prev => {
+          const existe = prev.some(s => s.id === data[0].id);
+          if (existe) return prev;
+          return [data[0], ...prev].slice(0, 6);
+        });
       }
 
-      const formData = new FormData(e.target);
-      const nuevaSol = {
-        area: formData.get("linea"),
-        tipo_soporte: formData.get("tipo"),
-        idsap_solicitante: profile?.idsap,
-        nombre_solicitante: profile?.user_name,
-        stapla_id: staplaId,
-        estado: "pendiente",
-      };
-
-      // 2. Intento de inserción
-      const { error } = await supabase.from("solicitudes").insert([nuevaSol]);
-
-      if (error) {
-        throw error; // Mandamos el error al bloque catch
-      }
-
-      // 3. Éxito
       setIsModalOpen(false);
-      e.target.reset();
+      setStaplaId("Stapla 1");
+      setFormData({ linea: "", tipo: "Llave" });
+
     } catch (err) {
-      console.error("Error completo:", err);
-      alert(
-        "Error al enviar solicitud: " + (err.message || "Error de conexión"),
-      );
+      console.error("Error:", err);
+      alert("Error al enviar: " + (err.message || "Error de conexión"));
     } finally {
-      // 4. PASE LO QUE PASE, liberamos el botón
-      setLoading(false);
+      submittingRef.current = false;
+      setSubmitting(false);
     }
-  };
+  }, []);
+
+  if (!profile) return <div className={styles.container}>Cargando...</div>;
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1>Panel Stapla - ¡Hola, {profile?.user_name}!</h1>
+        <h1>Panel Stapla - ¡Hola, {profile.user_name}!</h1>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setStaplaId("Stapla 1");
+            setIsModalOpen(true);
+          }}
           className={styles.btnSolicitar}
         >
           + NUEVA SOLICITUD
         </button>
       </header>
 
-      {/* Grid de Solicitudes (Cards) */}
       <div className={styles.cardsGrid}>
         {solicitudes.length === 0 ? (
           <p className={styles.noData}>No hay solicitudes activas.</p>
         ) : (
-          solicitudes.map((sol) => (
-            <div
+          // ✅ order={sol} directo — Card maneja sus propios campos
+          solicitudes.map(sol => (
+            <Card
               key={sol.id}
-              className={`${styles.card} ${styles[sol.estado]}`}
-            >
-              <div className={styles.cardHeader}>
-                <span className={styles.badge}>{sol.estado.toUpperCase()}</span>
-                <small>{new Date(sol.created_at).toLocaleTimeString()}</small>
-              </div>
-              <h3>{sol.tipo_soporte}</h3>
-              <p>
-                <strong>Línea:</strong> {sol.area}
-              </p>
-              <p>
-                <strong>Solicitante:</strong> {sol.nombre_solicitante}
-              </p>
-
-              {sol.nombre_calidad && (
-                <div className={styles.atendidoPor}>
-                  <span>🚀</span>
-                  <div>
-                    <strong>Soporte asignado:</strong>
-                    <br />
-                    {sol.nombre_calidad}
-                  </div>
-                </div>
-              )}
-            </div>
+              order={sol}
+              variant="stapla"
+            />
           ))
         )}
       </div>
 
-      {/* 🟢 MODAL RECUPERADO Y FUNCIONAL */}
       {isModalOpen && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <h2>Nueva Solicitud de Apoyo</h2>
-
             <form onSubmit={crearSolicitud}>
-              <div className={styles.selectorContainer}>
+              <div className={styles.inputGroup}>
                 <label>Selecciona tu Estación:</label>
                 <select
                   value={staplaId}
                   onChange={(e) => setStaplaId(e.target.value)}
+                  className={styles.select}
+                  required
                 >
                   <option value="Stapla 1">Stapla 1</option>
                   <option value="Stapla 2">Stapla 2</option>
@@ -160,7 +172,13 @@ const fetchSolicitudes = useCallback(async () => {
 
               <div className={styles.inputGroup}>
                 <label>Línea de Producción:</label>
-                <select name="linea" required className={styles.select}>
+                <select
+                  name="linea"
+                  value={formData.linea}
+                  onChange={handleChange}
+                  required
+                  className={styles.select}
+                >
                   <option value="">-- Seleccionar --</option>
                   <option value="Linea 34">Línea 34</option>
                   <option value="Linea 35">Línea 35</option>
@@ -171,31 +189,33 @@ const fetchSolicitudes = useCallback(async () => {
 
               <div className={styles.inputGroup}>
                 <label>Tipo de Soporte:</label>
-                <select name="tipo" required className={styles.select}>
+                <select
+                  name="tipo"
+                  value={formData.tipo}
+                  onChange={handleChange}
+                  required
+                  className={styles.select}
+                >
                   <option value="Llave">Llave</option>
                   <option value="Revision">Revisión</option>
                   <option value="Auditoria">Auditoría</option>
                 </select>
               </div>
 
-              <div className={styles.modalActions}>
+              <div className="modal-actions">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className={styles.btnCancel}
+                  className="btn-danger"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className={styles.btnConfirm}
-                  disabled={loading}
+                  className="btn-success"
+                  disabled={submitting}
                 >
-                  {loading ? (
-                    <span className={styles.spinnerBtn}>Enviando...</span>
-                  ) : (
-                    "CONFIRMAR SOLICITUD"
-                  )}
+                  {submitting ? "ENVIANDO..." : "CONFIRMAR SOLICITUD"}
                 </button>
               </div>
             </form>

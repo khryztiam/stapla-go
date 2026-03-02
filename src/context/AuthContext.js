@@ -1,4 +1,4 @@
-'use client'
+
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -9,17 +9,27 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = async (sessionUser) => {
+  // ✅ Función login centralizada (tomada del segundo)
+  const login = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    // onAuthStateChange se encarga del resto automáticamente
+  }
+
+  // ✅ Ahora recibe el session directamente (no hace segunda llamada a Supabase)
+  // ✅ Busca por id en vez de email
+  // ✅ fromEvent controla si debe tocar loading
+  const fetchProfile = async (sessionUser, fromEvent = false) => {
     if (!sessionUser) return null
 
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', sessionUser.email)
+      .eq('id', sessionUser.id)   // ✅ Busca por UUID, no por email
       .single()
 
     if (error) {
-      console.warn('Perfil no encontrado:', error.message)
+      if (!fromEvent) console.warn('Perfil no encontrado:', error.message)
       return null
     }
 
@@ -28,55 +38,48 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    let isMounted = true
+    let isMounted = true  // ✅ Previene memory leaks (mantenido del primero)
 
-    const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+   // ✅ Seguro por si onAuthStateChange tarda en disparar INITIAL_SESSION
+  const safetyTimeout = setTimeout(() => {
+    if (isMounted) setLoading(false)
+  }, 3000)
 
+  const { data: { subscription } } =
+    supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return
 
-      if (session) {
+      clearTimeout(safetyTimeout) // ✅ Cancelar si llegó a tiempo
+
+      if (session?.user) {
         setUser(session.user)
-        await fetchProfile(session.user)
+        await fetchProfile(session.user, true)
+      } else {
+        setUser(null)
+        setProfile(null)
       }
 
       setLoading(false)
-    }
+    })
 
-    initAuth()
-
-    const { data: { subscription } } =
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-
-        if (!isMounted) return
-
-        if (session) {
-          setUser(session.user)
-          await fetchProfile(session.user)
-        } else {
-          setUser(null)
-          setProfile(null)
-        }
-
-        setLoading(false)
-      })
-
-    return () => {
-      isMounted = false
+  return () => {
+    isMounted = false
+    clearTimeout(safetyTimeout)
+    if (subscription && typeof subscription.unsubscribe === 'function') {
       subscription.unsubscribe()
     }
-  }, [])
-
-const logout = async () => {
-  try {
-    await supabase.auth.signOut(); //
-    setUser(null); //
-    setProfile(null); //
-    // No pongas el window.location aquí para que el Context sea reutilizable
-  } catch (error) {
-    console.error("Error en signOut:", error);
   }
-};
+}, [])
+
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut()
+      setUser(null)
+      setProfile(null)
+    } catch (error) {
+      console.error('Error en signOut:', error)
+    }
+  }
 
   return (
     <AuthContext.Provider value={{
@@ -84,6 +87,7 @@ const logout = async () => {
       profile,
       role: profile?.rol_name?.toUpperCase() || null,
       loading,
+      login,   // ✅ Ahora expuesto
       logout
     }}>
       {children}

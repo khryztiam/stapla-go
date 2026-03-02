@@ -1,45 +1,28 @@
-"use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabaseClient"
+import { useAuth } from "@/context/AuthContext"  // ✅ Usa el contexto
 import styles from "@/styles/login.module.css"
 
 export default function LoginPage() {
-  const router = useRouter()
+  const { login } = useAuth()
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
     setLoading(true)
     setError(null)
 
+    const formData = new FormData(e.target)
+    const idsap = formData.get("idsap")?.trim()       // ✅ trim defensivo
+    const password = formData.get("password")
+    const email = `${idsap}@yazaki.com`.toLowerCase() // ✅ lowercase
+
     try {
-      const formData = new FormData(e.target)
-      const idsap = formData.get("idsap")
-      const password = formData.get("password")
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: `${idsap}@yazaki.com`,
-        password,
-      })
-
-      if (error) {
-        setError(error.message)
-        setLoading(false)
-        return
-      }
-
-      // Login exitoso
-      // Esperamos un tick para que la sesión se estabilice
-      setTimeout(() => {
-        router.replace("/dashboard")
-      }, 100)
-
+      await login(email, password)
+      // ✅ Sin redirect — AdminGate detecta la sesión y redirige según el rol
     } catch (err) {
-      setError("Error inesperado")
-      setLoading(false)
+      setError(err.message || "Error inesperado")
+      setLoading(false) // ✅ Solo en error, igual que el segundo
     }
   }
 
@@ -53,23 +36,28 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>
-            <label>ID SAP</label>
+            {/* ✅ label asociado al input con htmlFor */}
+            <label htmlFor="idsap">ID SAP</label>
             <input
+              id="idsap"
               name="idsap"
               type="text"
               placeholder="Ej. 10699992"
               required
               maxLength="8"
+              autoComplete="username"  // ✅
             />
           </div>
 
           <div className={styles.inputGroup}>
-            <label>Contraseña</label>
+            <label htmlFor="password">Contraseña</label>
             <input
+              id="password"
               name="password"
               type="password"
               placeholder="••••••••"
               required
+              autoComplete="current-password"  // ✅
             />
           </div>
 

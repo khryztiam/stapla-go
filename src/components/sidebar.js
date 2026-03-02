@@ -1,15 +1,15 @@
-"use client";
+// ✅ Sin "use client" — Pages Router
+// ✅ Sin usePathname — usamos useRouter de next/router
 import { useAuth } from '@/context/AuthContext';
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/router"; // ✅ Pages Router
 import styles from "@/styles/Sidebar.module.css";
 
 export default function Sidebar() {
-  // 1. Cambiamos 'signOut' por 'logout' para que coincida con el Contexto
   const { profile, logout, loading } = useAuth();
-  const pathname = usePathname();
+  const router = useRouter();
+  const pathname = router.pathname; // ✅ Equivalente a usePathname en Pages Router
 
-  // 2. Normalizamos los roles a MAYÚSCULAS para que coincidan con la DB
   const menuItems = [
     {
       name: "Dashboard",
@@ -37,26 +37,24 @@ export default function Sidebar() {
     },
   ];
 
-  // 3. Obtenemos el rol real y lo pasamos a mayúsculas para comparar bien
   const userRole = profile?.rol_name?.toUpperCase() || 'GUEST';
 
-const handleLogout = async () => {
-  try {
-    await logout(); // Esperamos a que el Context limpie Supabase
-    window.location.href = "/"; // Forzamos la salida al Home
-  } catch (error) {
-    window.location.href = "/"; // Si algo falla, salimos de todos modos
-  }
-};
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace("/login"); // ✅ Usa router de Pages Router, no window.location
+    } catch (error) {
+      router.replace("/login");
+    }
+  };
 
-  // 5. Si está cargando el perfil, mejor no mostrar el menú incompleto
   if (loading) return <div className={styles.sidebar}>Cargando...</div>;
 
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logoText}>
         <span className={styles.stapla}>Stapla</span>
-        <span className={styles.go}>Go</span>
+        <span className={styles.go}>Go.</span>
       </div>
 
       <nav className={styles.nav}>
