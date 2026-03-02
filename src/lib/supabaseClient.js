@@ -1,4 +1,3 @@
-// lib/supabaseClient.js — único archivo, borra los otros dos
 import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(
@@ -10,11 +9,17 @@ export const supabase = createClient(
       persistSession: true,
       detectSessionInUrl: false,
       storage: {
-        // ✅ Manejo explícito de localStorage para Pages Router
         getItem: (key) => (typeof window !== "undefined" ? localStorage.getItem(key) : null),
         setItem: (key, value) => (typeof window !== "undefined" ? localStorage.setItem(key, value) : null),
         removeItem: (key) => (typeof window !== "undefined" ? localStorage.removeItem(key) : null),
       },
+    },
+    // Esto es lo que tenías en Pallet Go y ayuda a la estabilidad
+    global: {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     }
   }
 )
