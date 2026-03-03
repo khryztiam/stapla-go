@@ -5,21 +5,24 @@ import { Card } from "@/components/Card";
 import styles from "@/styles/stapla.module.css";
 
 export default function StaplaPage() {
-  const { profile } = useAuth();
+  const { userName, role, idsap } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [staplaId, setStaplaId] = useState("Stapla 1");
   const [formData, setFormData] = useState({ linea: "", tipo: "Llave" });
 
+  const userNameRef = useRef(userName);
+const idsapRef = useRef(idsap);
   const formDataRef = useRef(formData);
   const staplaIdRef = useRef(staplaId);
-  const profileRef = useRef(profile);
   const submittingRef = useRef(false);
 
+  useEffect(() => { userNameRef.current = userName; }, [userName]);
+  useEffect(() => { idsapRef.current = idsap; }, [idsap]);
   useEffect(() => { formDataRef.current = formData; }, [formData]);
   useEffect(() => { staplaIdRef.current = staplaId; }, [staplaId]);
-  useEffect(() => { profileRef.current = profile; }, [profile]);
+
 
   const fetchSolicitudes = useCallback(async () => {
     const { data, error } = await supabase
@@ -32,7 +35,7 @@ export default function StaplaPage() {
   }, []);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!userName) return;
     fetchSolicitudes();
 
     const channel = supabase
@@ -66,7 +69,7 @@ export default function StaplaPage() {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [profile, fetchSolicitudes]);
+  }, [userName, fetchSolicitudes]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -79,9 +82,10 @@ export default function StaplaPage() {
     submittingRef.current = true;
     setSubmitting(true);
 
-    const currentProfile = profileRef.current;
+    const currentUserName = userNameRef.current; // ✅ ref correcto
     const currentFormData = formDataRef.current;
     const currentStaplaId = staplaIdRef.current;
+    const currentIdsap = idsapRef.current
 
     try {
       const { data, error } = await supabase
@@ -89,8 +93,8 @@ export default function StaplaPage() {
         .insert([{
           area: currentFormData.linea,
           tipo_soporte: currentFormData.tipo,
-          idsap_solicitante: currentProfile.idsap,
-          nombre_solicitante: currentProfile.user_name,
+          idsap_solicitante: currentIdsap,
+          nombre_solicitante: currentUserName,
           stapla_id: currentStaplaId,
           estado: "pendiente",
         }])
@@ -119,12 +123,12 @@ export default function StaplaPage() {
     }
   }, []);
 
-  if (!profile) return <div className={styles.container}>Cargando...</div>;
+  if (!userName) return <div className={styles.container}>Cargando...</div>;
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1>Panel Stapla - ¡Hola, {profile.user_name}!</h1>
+        <h1>Panel Stapla - ¡Hola, {userName}!</h1>
         <button
           onClick={() => {
             setStaplaId("Stapla 1");

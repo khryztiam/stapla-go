@@ -6,7 +6,7 @@ import { useRouter } from "next/router"; // ✅ Pages Router
 import styles from "@/styles/Sidebar.module.css";
 
 export default function Sidebar() {
-  const { profile, logout, loading } = useAuth();
+  const { userName, logout, loading, role } = useAuth();
   const router = useRouter();
   const pathname = router.pathname; // ✅ Equivalente a usePathname en Pages Router
 
@@ -37,7 +37,7 @@ export default function Sidebar() {
     },
   ];
 
-  const userRole = profile?.rol_name?.toUpperCase() || 'GUEST';
+  const userRole = role?.toUpperCase() || 'GUEST';
 
   const handleLogout = async () => {
     try {
@@ -77,7 +77,7 @@ export default function Sidebar() {
 
       <div className={styles.footer}>
         <div className={styles.userBadge}>
-          <p className={styles.userName}>{profile?.user_name || "Usuario"}</p>
+          <p className={styles.userName}>{userName || "Usuario"}</p>
           <p className={styles.userRole}>{userRole}</p>
         </div>
         

@@ -10,10 +10,10 @@ export const Card = ({
   profile
 }) => {
 
-  const isAdminOrCalidad = profile?.rol_name?.toUpperCase() === 'ADMIN' || 
-                           profile?.rol_name?.toUpperCase() === 'CALIDAD';
+  const isAdminOrCalidad = profile?.role.toUpperCase() === 'ADMIN' || 
+                           profile?.role.toUpperCase() === 'CALIDAD';
 
-  const canFinalizar = profile?.rol_name?.toUpperCase() === 'ADMIN' || 
+  const canFinalizar = profile?.role.toUpperCase() === 'ADMIN' || 
                        order.idsap_calidad === profile?.idsap;
 
   const estadoBadgeClass = (estado) => {
@@ -83,7 +83,10 @@ export const Card = ({
       <p className="card-field">
         <strong>Línea:</strong> {order.area}
       </p>
-      {/* ✅ Sin fecha aquí — va en el footer */}
+      {/* ✅ Solo una fecha */}
+      <span className="card-field">
+        <strong>Fecha:</strong> {formatDate(order.created_at)}
+      </span>
     </div>
         );
 
@@ -160,10 +163,7 @@ export const Card = ({
           <span>Atendido por <strong>{order.nombre_calidad}</strong></span>
         </div>
       )}
-      {/* ✅ Solo una fecha */}
-      <span className="card-date-footer">
-        {formatDate(order.created_at)}
-      </span>
+      
     </div>
       );
     }

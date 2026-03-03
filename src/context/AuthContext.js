@@ -5,9 +5,12 @@ import { supabase } from '@/lib/supabaseClient'
 const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [userName, setUserName] = useState('');
+  const [role, setRole] = useState('');
+  const [idsap, setIdsap] = useState('');
+  //const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true);
 
   // ✅ Función login centralizada (tomada del segundo)
   const login = async (email, password) => {
@@ -16,77 +19,69 @@ export function AuthProvider({ children }) {
     // onAuthStateChange se encarga del resto automáticamente
   }
 
-  // ✅ Ahora recibe el session directamente (no hace segunda llamada a Supabase)
-  // ✅ Busca por id en vez de email
-  // ✅ fromEvent controla si debe tocar loading
-  const fetchProfile = async (sessionUser, fromEvent = false) => {
-    if (!sessionUser) return null
+  useEffect(() => {
+  const getSession = async (fromEvent = false) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user || null);
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', sessionUser.id)   // ✅ Busca por UUID, no por email
-      .single()
+    if (session?.user) {
+      const { data, error } = await supabase
+        .from('users')
+        .select('user_name, rol_name, idsap')
+        .eq('email', session.user.email)
+        .single();
 
-    if (error) {
-      if (!fromEvent) console.warn('Perfil no encontrado:', error.message)
-      return null
+      if (data) {
+        setUserName(data.user_name);
+        setRole(data.rol_name);
+        setIdsap(data.idsap);
+      } else if (!fromEvent) {
+        console.error('Error al obtener datos del usuario:', error);
+      }
     }
 
-    setProfile(data)
-    return data
-  }
+    if (!fromEvent) {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    let isMounted = true  // ✅ Previene memory leaks (mantenido del primero)
+  getSession(); // carga inicial
 
-   // ✅ Seguro por si onAuthStateChange tarda en disparar INITIAL_SESSION
-  const safetyTimeout = setTimeout(() => {
-    if (isMounted) setLoading(false)
-  }, 3000)
-
-  const { data: { subscription } } =
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return
-
-      clearTimeout(safetyTimeout) // ✅ Cancelar si llegó a tiempo
-
-      if (session?.user) {
-        setUser(session.user)
-        await fetchProfile(session.user, true)
-      } else {
-        setUser(null)
-        setProfile(null)
-      }
-
-      setLoading(false)
-    })
+  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user || null);
+    if (session?.user) {
+      getSession(true); // evita conflicto con loading
+    } else {
+      setUserName('');
+      setRole('');
+    }
+  });
 
   return () => {
-    isMounted = false
-    clearTimeout(safetyTimeout)
-    if (subscription && typeof subscription.unsubscribe === 'function') {
-      subscription.unsubscribe()
+    if (listener && typeof listener.unsubscribe === 'function') {
+      listener.unsubscribe();
     }
-  }
-}, [])
+  };
+}, []);
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut()
-      setUser(null)
-      setProfile(null)
-    } catch (error) {
-      console.error('Error en signOut:', error)
-    }
-  }
+
+    // Función de logout
+    const logout = async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+        setUserName('');
+        setRole('');
+        setIdsap('');
+    };
+
 
   return (
     <AuthContext.Provider value={{
       user,
-      profile,
-      role: profile?.rol_name?.toUpperCase() || null,
+      userName,
+      role: role?.toUpperCase(), // ✅ Asegura mayúsculas para consistencia
       loading,
+      idsap,
       login,   // ✅ Ahora expuesto
       logout
     }}>

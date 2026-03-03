@@ -1,10 +1,13 @@
 // RoleGate.js
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/router';
 
 const RoleGate = ({ allowedRoles, children }) => {
-  const { role, loading } = useAuth(); // ✅ Usa loading del contexto, no crea uno propio
+  const { user, role } = useAuth(); // ✅ Usa loading del contexto, no crea uno propio
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
 
   // ✅ Mientras el contexto verifica la sesión, espera
   if (loading) {

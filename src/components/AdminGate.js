@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 
 export const roleRoutes = {
-  ADMIN: ['/admin/admin', '/calidad', '/stapla', '/dashboard'],
+  ADMIN: ['/admin/admin', '/calidad', '/stapla', '/dashboard','/test'],
   STAPLA: ['/stapla', '/dashboard'],
   CALIDAD: ['/calidad', '/dashboard'],
 };

@@ -5,15 +5,19 @@ import { Card } from '@/components/Card';
 import styles from '@/styles/calidad.module.css';
 
 export default function CalidadPage() {
-  const { profile } = useAuth();
+  const { userName, role, idsap } = useAuth();
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bannerVisible, setBannerVisible] = useState(true);
 
-  const profileRef = useRef(profile);
+  const userNameRef = useRef(userName);
+  const roleRef = useRef(role);
+  const idsapRef = useRef(idsap);
   const userInteractedRef = useRef(false);
 
-  useEffect(() => { profileRef.current = profile; }, [profile]);
+  useEffect(() => { userNameRef.current = userName; }, [userName]);
+  useEffect(() => { roleRef.current = role; }, [role]);
+  useEffect(() => { idsapRef.current = idsap; }, [idsap]);
 
   // ─── VOZ Y NOTIFICACIONES ────────────────────────────────
 
@@ -58,7 +62,7 @@ export default function CalidadPage() {
   // ─── CARGA Y REALTIME ────────────────────────────────────
 
   useEffect(() => {
-    if (!profile) return;
+    if (!userName) return;
 
     if ("speechSynthesis" in window) {
       window.speechSynthesis.getVoices();
@@ -114,20 +118,21 @@ export default function CalidadPage() {
       supabase.removeChannel(channel);
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
-  }, [profile, enviarNotificacion]);
+  }, [userName, enviarNotificacion]);
 
   // ─── ACCIONES ────────────────────────────────────────────
 
   const atenderSolicitud = useCallback(async (solicitudId) => {
-    const currentProfile = profileRef.current;
-    if (!currentProfile) return;
+    const currentUserName = userNameRef.current; // ✅
+    const currentIdsap = idsapRef.current;       // ✅
+    if (!currentUserName) return;
 
     const { error } = await supabase
       .from('solicitudes')
       .update({
         estado: 'en_proceso',
-        idsap_calidad: currentProfile.idsap,
-        nombre_calidad: currentProfile.user_name,
+        idsap_calidad: currentIdsap,
+        nombre_calidad: currentUserName,
         fecha_inicio_soporte: new Date().toISOString()
       })
       .eq('id', solicitudId);
@@ -147,16 +152,16 @@ export default function CalidadPage() {
     if (error) alert("Error al finalizar: " + error.message);
   }, []);
 
-  if (!profile) return <div className={styles.container}>Cargando usuario...</div>;
+  if (!userName) return <div className={styles.container}>Cargando usuario...</div>;
 
   // ─── FILTROS ─────────────────────────────────────────────
 
   const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
   const misAtenciones = solicitudes.filter(
-    s => s.estado === 'en_proceso' && s.idsap_calidad === profile.idsap
+    s => s.estado === 'en_proceso' && s.idsap_calidad === idsap
   );
   const otrosTecnicos = solicitudes.filter(
-    s => s.estado === 'en_proceso' && s.idsap_calidad && s.idsap_calidad !== profile.idsap
+    s => s.estado === 'en_proceso' && s.idsap_calidad && s.idsap_calidad !== idsap
   );
 
   // ─── RENDER ──────────────────────────────────────────────
@@ -172,8 +177,8 @@ export default function CalidadPage() {
       <header className={styles.header}>
         <h1>Atención de Avisos - Calidad</h1>
         <div className={styles.userInfo}>
-          <p><strong>Usuario:</strong> {profile.user_name}</p>
-          <p><small>SAP: {profile.idsap}</small></p>
+          <p><strong>Usuario:</strong> {userName}</p>
+          <p><small>SAP: {idsap}</small></p>
         </div>
       </header>
 
@@ -190,7 +195,7 @@ export default function CalidadPage() {
                 variant="calidad"
                 onAtender={atenderSolicitud}
                 onFinalizar={finalizarSolicitud}
-                profile={profile}
+                profile={{ userName, idsap, role }}
               />
             ))}
           </div>
@@ -209,7 +214,7 @@ export default function CalidadPage() {
                 order={sol}
                 variant="calidad"
                 onAtender={atenderSolicitud}
-                profile={profile}
+                profile={{ userName, idsap, role }}
               />
             ))
           )}
@@ -225,7 +230,7 @@ export default function CalidadPage() {
                 key={sol.id}
                 order={sol}
                 variant="calidad"
-                profile={profile}
+                profile={{ userName, idsap, role }}
               />
             ))}
           </div>
