@@ -261,7 +261,7 @@ return (
       {/* Áreas hoy */}
       <div className={styles.chartContainer}>
         <h3>Solicitudes por Área (Hoy)</h3>
-        <ResponsiveContainer width="100%" height={250}>
+        <ResponsiveContainer width="100%" height={180}>
           <BarChart data={charts.porArea}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" />
@@ -276,7 +276,7 @@ return (
       <div className={styles.chartsGridMiddle}>
         <div className={styles.chartContainer}>
           <h3>Total Solicitudes (Últimos 7 días)</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={180}>
             <BarChart data={charts.ultimos7Dias}>
               <XAxis dataKey="name" />
               <YAxis />
@@ -288,7 +288,7 @@ return (
 
         <div className={styles.chartContainer}>
           <h3>T. Promedio Soporte (Últimos 7 días)</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={180}>
             <LineChart data={charts.tiempos7Dias}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />

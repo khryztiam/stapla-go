@@ -31,6 +31,7 @@ export default function AdminGate({ children }) {
       const targetRoute = roleRoutes[role]?.[0] || '/dashboard';
       router.replace(targetRoute);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, role, loading, router.pathname]); // ✅ isOpenRoute es derivada, no necesita ir
 
   if (loading) return null;

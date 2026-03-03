@@ -155,3 +155,22 @@
 @media (max-width: 480px) {
   .metricsRow { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 1024px) and (min-width: 768px) {
+  .metricsRow {
+    grid-template-columns: repeat(4, 1fr); /* ✅ Siempre 4 columnas en tablet */
+    gap: 0.8rem;
+  }
+
+  .metricCard h2 {
+    font-size: 1.6rem; /* ✅ Número más pequeño */
+  }
+
+  .metricCard p {
+    font-size: 0.7rem; /* ✅ Label más pequeño */
+  }
+
+  .metricCard {
+    padding: 0.9rem 0.8rem; /* ✅ Menos padding */
+  }
+}

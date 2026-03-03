@@ -29,22 +29,17 @@ function AppContent({ Component, pageProps }) {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
-      <aside style={{ width: "260px", flexShrink: 0 }}>
-        <Sidebar />
-      </aside>
-      <main style={{ 
-        flexGrow: 1, 
-        width: "calc(100% - 260px)", 
-        backgroundColor: "#f4f7f9",
-        overflowX: "hidden" 
-      }}>
-        <AdminGate>
-          <Component {...pageProps} />
-        </AdminGate>
-      </main>
-    </div>
-  );
+  <div className="app-layout">
+    <aside className="app-sidebar">
+      <Sidebar />
+    </aside>
+    <main className="app-main">
+      <AdminGate>
+        <Component {...pageProps} />
+      </AdminGate>
+    </main>
+  </div>
+);
 }
 export default function App({ Component, pageProps }) {
   return (
