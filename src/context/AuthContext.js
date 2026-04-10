@@ -9,7 +9,6 @@ export function AuthProvider({ children }) {
   const [userName, setUserName] = useState('');
   const [role, setRole] = useState('');
   const [idsap, setIdsap] = useState('');
-  //const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true);
 
   // ✅ Función login centralizada (tomada del segundo)

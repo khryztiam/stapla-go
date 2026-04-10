@@ -1,43 +1,23 @@
-// AdminGate.js
-import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 
 export const roleRoutes = {
-  ADMIN: ['/admin/admin', '/calidad', '/stapla', '/dashboard','/test'],
+  ADMIN: ['/admin/admin', '/calidad', '/stapla', '/dashboard'],
   STAPLA: ['/stapla', '/dashboard'],
   CALIDAD: ['/calidad', '/dashboard'],
 };
-
-const openRoutes = ['/', '/login']; // ✅ Fuera del componente, no se recrea en cada render
 
 export default function AdminGate({ children }) {
   const { user, role, loading } = useAuth();
   const router = useRouter();
 
-  const isOpenRoute = openRoutes.includes(router.pathname);
   const allowedRoutes = roleRoutes[role] || [];
-  const isAccessDenied = user && !isOpenRoute && !allowedRoutes.includes(router.pathname);
-
-  useEffect(() => {
-    if (loading) return;
-
-    if (!user && !isOpenRoute) {
-      router.replace('/');
-      return;
-    }
-
-    if (user && isOpenRoute) {
-      const targetRoute = roleRoutes[role]?.[0] || '/dashboard';
-      router.replace(targetRoute);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, role, loading, router.pathname]); // ✅ isOpenRoute es derivada, no necesita ir
+  const isAccessDenied = user && !allowedRoutes.includes(router.pathname);
 
   if (loading) return null;
 
-  // ✅ Guard explícito: sin sesión en ruta privada, no renderiza nada mientras redirige
-  if (!user && !isOpenRoute) return null;
+  // Guard defensivo: _app ya redirige invitados en rutas privadas.
+  if (!user) return null;
 
   if (isAccessDenied) {
     return (

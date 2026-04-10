@@ -1,6 +1,6 @@
 // pages/_app.js
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import Sidebar from '@/components/sidebar';
+import Sidebar from '@/components/Sidebar';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import '@/styles/globals.css';
@@ -10,21 +10,26 @@ import AdminGate, { roleRoutes } from '@/components/AdminGate';
 
 function AppContent({ Component, pageProps }) {
   const router = useRouter();
-  const { user, role, loading } = useAuth()
+  const { user, role, loading } = useAuth();
 
   const isLoginPage = router.pathname.startsWith("/login");
   const isRoot = router.pathname === "/";
+  const isPublicRoute = isLoginPage || isRoot;
 
   if (loading) return null;
 
-  // ✅ Redirección cuando ya hay sesión y está en ruta pública
-  if (user && role && (isLoginPage || isRoot)) {
-    const targetRoute = roleRoutes[role]?.[0] || '/dashboard'
-    router.replace(targetRoute)
-    return null
+  if (!isPublicRoute && !user) {
+    router.replace('/');
+    return null;
   }
 
-  if (!user || isLoginPage || isRoot) {
+  if (user && role && isPublicRoute) {
+    const targetRoute = roleRoutes[role]?.[0] || '/dashboard';
+    router.replace(targetRoute);
+    return null;
+  }
+
+  if (isPublicRoute) {
     return <Component {...pageProps} />;
   }
 

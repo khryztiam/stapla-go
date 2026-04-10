@@ -6,68 +6,89 @@ import styles from '@/styles/calidad.module.css';
 
 export default function CalidadPage() {
   const { userName, role, idsap } = useAuth();
-  const [solicitudes, setSolicitudes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [bannerVisible, setBannerVisible] = useState(true);
+  const [solicitudes, setSolicitudes]      = useState([]);
+  const [loading, setLoading]               = useState(true);
+  const [userInteracted, setUserInteracted] = useState(false);
 
+  const audioRef    = useRef(null);
   const userNameRef = useRef(userName);
-  const roleRef = useRef(role);
-  const idsapRef = useRef(idsap);
-  const userInteractedRef = useRef(false);
+  const roleRef     = useRef(role);
+  const idsapRef    = useRef(idsap);
 
   useEffect(() => { userNameRef.current = userName; }, [userName]);
-  useEffect(() => { roleRef.current = role; }, [role]);
-  useEffect(() => { idsapRef.current = idsap; }, [idsap]);
+  useEffect(() => { roleRef.current = role; },        [role]);
+  useEffect(() => { idsapRef.current = idsap; },      [idsap]);
 
-  // ─── VOZ Y NOTIFICACIONES ────────────────────────────────
+  // Desbloqueo de audio — useEffect separado para no re-suscribir el canal
+  useEffect(() => {
+    const unlock = () => {
+      setUserInteracted(true);
+      if (audioRef.current) audioRef.current.load();
+    };
+    document.addEventListener('click',      unlock, { once: true });
+    document.addEventListener('touchstart', unlock, { once: true });
+    document.addEventListener('keydown',    unlock, { once: true });
+    return () => {
+      document.removeEventListener('click',      unlock);
+      document.removeEventListener('touchstart', unlock);
+      document.removeEventListener('keydown',    unlock);
+    };
+  }, []);
 
-  const playVoiceNotification = useCallback((solicitud) => {
-    if (!userInteractedRef.current || !("speechSynthesis" in window)) return;
+  // Precarga de voces — useEffect separado
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }, []);
+
+  // Permisos de notificación al montar
+  useEffect(() => {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === 'default') Notification.requestPermission();
+  }, []);
+
+  // ─── NOTIFICACIONES ──────────────────────────────────────
+
+  const enviarNotificacion = useCallback((solicitud) => {
+    // 1. MP3 — funciona aunque la ventana esté minimizada o en otra pestaña
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+
+    // 2. Push de escritorio — prioridad cuando no hay foco
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('⚠️ NUEVO AVISO - StaplaGo', {
+        body: `${solicitud.area}: ${solicitud.tipo_soporte} en ${solicitud.stapla_id || 'Estación'}`,
+        icon: '/logo-icon.png',
+        tag: `aviso-${solicitud.id}`,
+        requireInteraction: true,
+        renotify: true,
+      });
+    }
+
+    // 3. Voz — solo si la pestaña tiene foco
+    if (!("speechSynthesis" in window) || document.hidden) return;
     window.speechSynthesis.cancel();
-    const mensaje = `Atención. Nueva solicitud de ${solicitud.tipo_soporte} para ${solicitud.stapla_id} en ${solicitud.area}.`;
-    const speech = new SpeechSynthesisUtterance(mensaje);
-    speech.lang = "es-MX";
+    const speech = new SpeechSynthesisUtterance(
+      `Atención. Nueva solicitud de ${solicitud.tipo_soporte} para ${solicitud.stapla_id} en ${solicitud.area}.`
+    );
+    speech.lang = 'es-MX';
     speech.rate = 0.9;
     const voices = window.speechSynthesis.getVoices();
     speech.voice =
-      voices.find(v => v.name.includes("Dalia") && v.name.includes("Online")) ||
-      voices.find(v => v.lang === "es-MX") ||
-      voices.find(v => v.lang.includes("es"));
+      voices.find(v => v.name.includes('Dalia') && v.name.includes('Online')) ||
+      voices.find(v => v.lang === 'es-MX') ||
+      voices.find(v => v.lang.startsWith('es')) ||
+      null;
     window.speechSynthesis.speak(speech);
-  }, []);
-
-  const enviarNotificacion = useCallback((solicitud) => {
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "granted") {
-      new Notification("⚠️ NUEVO AVISO - StaplaGo", {
-        body: `${solicitud.area}: ${solicitud.tipo_soporte} en ${solicitud.stapla_id || 'Estación'}`,
-        icon: "/logo-icon.png",
-        tag: "nuevo-aviso"
-      });
-    }
-    playVoiceNotification(solicitud);
-  }, [playVoiceNotification]);
-
-  const activarAudio = useCallback(() => {
-    userInteractedRef.current = true;
-    setBannerVisible(false);
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-    const confirmMsg = new SpeechSynthesisUtterance("Sistema de avisos activado");
-    confirmMsg.lang = "es-MX";
-    window.speechSynthesis.speak(confirmMsg);
   }, []);
 
   // ─── CARGA Y REALTIME ────────────────────────────────────
 
   useEffect(() => {
     if (!userName) return;
-
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-    }
 
     const loadInitialData = async () => {
       setLoading(true);
@@ -168,9 +189,14 @@ export default function CalidadPage() {
 
   return (
     <div className={styles.container}>
-      {bannerVisible && (
-        <div className="audio-banner" onClick={activarAudio}>
-          📢 Haz clic aquí para activar las alertas de voz
+      {/* Audio oculto — se reproduce aunque la ventana esté minimizada */}
+      <audio ref={audioRef} preload="auto" style={{ display: 'none' }}>
+        <source src="/nuevo_aviso.mp3" type="audio/mpeg" />
+      </audio>
+
+      {!userInteracted && (
+        <div className="audio-banner">
+          👆 Haz clic en cualquier lugar para activar las notificaciones de audio
         </div>
       )}
 
